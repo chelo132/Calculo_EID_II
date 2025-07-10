@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from amdahl import aceleracion, limite_teorico
-from plots import plot_A_vs_f_con_botones
+from plots import plot_A_vs_f_con_botones, plot_A_vs_k_con_botones
 from pathlib import Path
 
 def extraer_fk_de_checkboxes(checkboxes):
@@ -23,27 +23,35 @@ def create_app():
 
     app = ctk.CTk()
     app.title("Ley de Amdahl - Cálculo dinámico")
-    app.geometry("800x500")
+    app.geometry("950x580")
 
     layout = ctk.CTkFrame(app)
     layout.pack(fill="both", expand=True, padx=20, pady=20)
 
     left_frame = ctk.CTkFrame(layout, corner_radius=12)
-    left_frame.grid(row=0, column=0, padx=20, pady=(40, 20), sticky="n")
+    left_frame.grid(row=0, column=0, padx=30, pady=(40, 20), sticky="n")
 
-    ctk.CTkLabel(left_frame, text="Fracción mejorable (f):", font=ctk.CTkFont(size=14)).grid(row=0, column=0, sticky="w", padx=5, pady=(0, 5))
-    entry_f = ctk.CTkEntry(left_frame, width=120, font=ctk.CTkFont(size=13))
-    entry_f.grid(row=0, column=1, padx=5, pady=(0, 5))
 
-    ctk.CTkLabel(left_frame, text="Factor de mejora (k):", font=ctk.CTkFont(size=14)).grid(row=1, column=0, sticky="w", padx=5, pady=(20, 5))
-    entry_k = ctk.CTkEntry(left_frame, width=120, font=ctk.CTkFont(size=13))
-    entry_k.grid(row=1, column=1, padx=5, pady=(20, 5))
+    # Fracción mejorable (f)
+    ctk.CTkLabel(left_frame, text="Fracción mejorable (f):", font=ctk.CTkFont(size=15)).grid(
+        row=0, column=0, sticky="w", padx=10, pady=(30, 0)
+    )
+    entry_f = ctk.CTkEntry(left_frame, width=200, font=ctk.CTkFont(size=14))
+    entry_f.grid(row=1, column=0, padx=10, pady=(0, 40))
+
+    # Factor de mejora (k)
+    ctk.CTkLabel(left_frame, text="Factor de mejora (k):", font=ctk.CTkFont(size=15)).grid(
+        row=2, column=0, sticky="w", padx=10, pady=(30, 0)
+    )
+    entry_k = ctk.CTkEntry(left_frame, width=200, font=ctk.CTkFont(size=14))
+    entry_k.grid(row=3, column=0, padx=10, pady=(0, 40))
+
 
     result = ctk.CTkLabel(left_frame, text="A: --    Aₘₐₓ: --", font=ctk.CTkFont(size=15, weight="bold"))
-    result.grid(row=2, column=0, columnspan=2, pady=15)
+    result.grid(row=4, column=0, pady=(0, 25))
 
     btn_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
-    btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
+    btn_frame.grid(row=5, column=0, pady=10)
 
     checkboxes = []
 
@@ -71,7 +79,6 @@ def create_app():
             checkbox = ctk.CTkCheckBox(scroll_hist, text=resumen, variable=var)
             checkbox.pack(anchor="w", pady=2)
 
-            # Doble click para cargar valores
             def doble_click(event, cb=checkbox):
                 if cb.cget("text") in [c[0].cget("text") for c in checkboxes]:
                     parts = cb.cget("text").split("→")[0].strip().split(",")
@@ -106,6 +113,23 @@ def create_app():
             except:
                 result.configure(text="Error en valores para graficar")
 
+    def graficar_k():
+        seleccionados = [(cb, var) for cb, var in checkboxes if var.get()]
+        if len(seleccionados) >= 1:
+            pares = extraer_fk_de_checkboxes(seleccionados)
+            plot_A_vs_k_con_botones(pares)
+        else:
+            try:
+                raw_f = entry_f.get().strip()
+                if raw_f.endswith("%"):
+                    f = float(raw_f.strip("%")) / 100
+                else:
+                    f = float(raw_f)
+                k = float(entry_k.get())
+                plot_A_vs_k_con_botones([(f, k)])
+            except:
+                result.configure(text="Error en valores para graficar")
+
     def eliminar_seleccionados():
         for cb, var in checkboxes[:]:
             if var.get():
@@ -131,21 +155,23 @@ def create_app():
 
     ctk.CTkButton(btn_frame, text="🧾 Calcular", width=110, command=calcular).grid(row=0, column=0, padx=7)
     ctk.CTkButton(btn_frame, text="📊 A vs f", width=110, command=graficar_f).grid(row=0, column=1, padx=7)
+    ctk.CTkButton(btn_frame, text="📊 A vs k", width=110, command=graficar_k).grid(row=0, column=2, padx=7)
     ctk.CTkButton(btn_frame, text="🪜 Limpiar", width=110, command=limpiar_historial).grid(row=1, column=0, pady=10)
     ctk.CTkButton(btn_frame, text="📀 Exportar", width=110, command=exportar_historial).grid(row=1, column=1, pady=10)
+
     ctk.CTkButton(
         left_frame, text="Eliminar seleccionados",
         fg_color="#E53935", hover_color="#B71C1C", text_color="white",
         font=ctk.CTkFont(size=13, weight="bold"),
         command=eliminar_seleccionados
-    ).grid(row=4, column=0, columnspan=2, pady=10)
+    ).grid(row=6, column=0, pady=10)
 
     right_frame = ctk.CTkFrame(layout)
     right_frame.grid(row=0, column=1, padx=20, pady=20, sticky="n")
 
-    ctk.CTkLabel(right_frame, text="Historial de cálculos", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(5, 10))
+    ctk.CTkLabel(right_frame, text="Historial de cálculos", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(5, 30))
 
     scroll_hist = ctk.CTkScrollableFrame(right_frame, width=360, height=320)
-    scroll_hist.pack(pady=(0, 10))
+    scroll_hist.pack(pady=(0, 75))
 
     return app
