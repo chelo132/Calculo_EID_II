@@ -43,22 +43,33 @@ def create_app():
     scroll_hist = ctk.CTkScrollableFrame(right_frame, width=340, height=300)
     scroll_hist.pack(pady=5)
     checkboxes = []
+    history_items = []
 
     def calcular():
         try:
             f_input = entry_f.get()
             f = parse_f_input(f_input)
+
             k = float(entry_k.get())
+
+            # Validaciones
+            if not (0 <= f <= 1):
+                raise ValueError("f debe estar entre 0 y 1 (o usar un porcentaje válido)")
+            if k <= 0:
+                raise ValueError("k debe ser mayor que 0")
 
             A = aceleracion(f, k)
             Amax = limite_teorico(f)
             result.configure(text=f"A = {A:.4f}    Aₘₐₓ = {Amax:.4f}")
 
             resumen = f"f={f:.2f}, k={k:.2f} → A={A:.4f}, Aₘₐₓ={Amax:.4f}"
+            history_items.append(resumen)
+
             var = ctk.BooleanVar()
             checkbox = ctk.CTkCheckBox(scroll_hist, text=resumen, variable=var)
             checkbox.pack(anchor="w", pady=2)
             checkboxes.append((checkbox, var))
+
         except Exception as e:
             result.configure(text=f"Error: {e}")
 
