@@ -1,7 +1,7 @@
 # gui.py
 import customtkinter as ctk
 from amdahl import aceleracion, limite_teorico
-from plots import plot_A_vs_f, plot_A_vs_k
+from plots import plot_A_vs_f, plot_A_vs_k, plot_multi_A_vs_f, plot_multi_A_vs_k
 from pathlib import Path
 
 def create_app():
@@ -33,8 +33,8 @@ def create_app():
     btn_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
     btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
     ctk.CTkButton(btn_frame, text="🧾 Calcular", width=110, command=lambda: calcular()).grid(row=0, column=0, padx=7)
-    ctk.CTkButton(btn_frame, text="📊 A vs f", width=110, command=lambda: graficar_f(True)).grid(row=0, column=1, padx=7)
-    ctk.CTkButton(btn_frame, text="📊 A vs k", width=110, command=lambda: graficar_k(True)).grid(row=0, column=2, padx=7)
+    ctk.CTkButton(btn_frame, text="📊 A vs f", width=110, command=lambda: graficar_f()).grid(row=0, column=1, padx=7)
+    ctk.CTkButton(btn_frame, text="📊 A vs k", width=110, command=lambda: graficar_k()).grid(row=0, column=2, padx=7)
     ctk.CTkButton(btn_frame, text="🪜 Limpiar", width=110, command=lambda: limpiar_historial()).grid(row=1, column=0, pady=10)
     ctk.CTkButton(btn_frame, text="📀 Exportar", width=110, command=lambda: exportar_historial()).grid(row=1, column=2, pady=10)
 
@@ -73,39 +73,65 @@ def create_app():
             var = ctk.BooleanVar()
             checkbox = ctk.CTkCheckBox(scroll_hist, text=resumen, variable=var)
             checkbox.pack(anchor="w", pady=2)
+            checkbox.bind("<Double-Button-1>", lambda e, f=f, k=k: cargar_valores(f, k))
             checkboxes.append((checkbox, var))
         except Exception as e:
             result.configure(text=f"Error: {e}")
 
-    def graficar_f(con_punto=False):
-        try:
-            raw_f = entry_f.get().strip()
-            if raw_f.endswith("%"):
-                f = float(raw_f.strip("%")) / 100
-            else:
-                f = float(raw_f)
-            k = float(entry_k.get())
-            if con_punto:
-                plot_A_vs_f(k, punto_f=f)
-            else:
-                plot_A_vs_f(k)
-        except:
-            result.configure(text="Error en valores para graficar")
+    def cargar_valores(f, k):
+        entry_f.delete(0, "end")
+        entry_f.insert(0, f"{f:.2f}")
+        entry_k.delete(0, "end")
+        entry_k.insert(0, f"{k:.2f}")
+        result.configure(text="↩️ Valores cargados desde historial")
 
-    def graficar_k(con_punto=False):
-        try:
-            raw_f = entry_f.get().strip()
-            if raw_f.endswith("%"):
-                f = float(raw_f.strip("%")) / 100
-            else:
-                f = float(raw_f)
-            k = float(entry_k.get())
-            if con_punto:
+    def graficar_f():
+        seleccionados = [(cb, var) for cb, var in checkboxes if var.get()]
+        if len(seleccionados) >= 2:
+            pares = extraer_fk_de_checkboxes(seleccionados)
+            plot_multi_A_vs_f(pares)
+        else:
+            try:
+                raw_f = entry_f.get().strip()
+                if raw_f.endswith("%"):
+                    f = float(raw_f.strip("%")) / 100
+                else:
+                    f = float(raw_f)
+                k = float(entry_k.get())
+                plot_A_vs_f(k, punto_f=f)
+            except:
+                result.configure(text="Error en valores para graficar")
+
+    def graficar_k():
+        seleccionados = [(cb, var) for cb, var in checkboxes if var.get()]
+        if len(seleccionados) >= 2:
+            pares = extraer_fk_de_checkboxes(seleccionados)
+            plot_multi_A_vs_k(pares)
+        else:
+            try:
+                raw_f = entry_f.get().strip()
+                if raw_f.endswith("%"):
+                    f = float(raw_f.strip("%")) / 100
+                else:
+                    f = float(raw_f)
+                k = float(entry_k.get())
                 plot_A_vs_k(f, punto_k=k)
-            else:
-                plot_A_vs_k(f)
-        except:
-            result.configure(text="Error en valores para graficar")
+            except:
+                result.configure(text="Error en valores para graficar")
+
+    def extraer_fk_de_checkboxes(items):
+        pares = []
+        for cb, _ in items:
+            try:
+                texto = cb.cget("text")
+                f_str = texto.split("f=")[1].split(",")[0]
+                k_str = texto.split("k=")[1].split("→")[0]
+                f = float(f_str.strip())
+                k = float(k_str.strip())
+                pares.append((f, k))
+            except:
+                continue
+        return pares
 
     def eliminar_seleccionados():
         for cb, var in checkboxes[:]:
