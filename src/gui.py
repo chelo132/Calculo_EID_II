@@ -1,8 +1,21 @@
-# gui.py
 import customtkinter as ctk
 from amdahl import aceleracion, limite_teorico
-from plots import plot_A_vs_f, plot_A_vs_k, plot_multi_A_vs_f, plot_multi_A_vs_k
+from plots import plot_A_vs_f_con_botones
 from pathlib import Path
+
+def extraer_fk_de_checkboxes(checkboxes):
+    pares = []
+    for cb, var in checkboxes:
+        try:
+            texto = cb.cget("text")
+            partes = texto.split("→")[0].strip()
+            f_str, k_str = partes.split(",")
+            f = float(f_str.split("=")[1])
+            k = float(k_str.split("=")[1])
+            pares.append((f, k))
+        except:
+            continue
+    return pares
 
 def create_app():
     ctk.set_appearance_mode("System")
@@ -10,12 +23,11 @@ def create_app():
 
     app = ctk.CTk()
     app.title("Ley de Amdahl - Cálculo dinámico")
-    app.geometry("900x550")
+    app.geometry("800x500")
 
     layout = ctk.CTkFrame(app)
     layout.pack(fill="both", expand=True, padx=20, pady=20)
 
-    # ---------- IZQUIERDA ----------
     left_frame = ctk.CTkFrame(layout, corner_radius=12)
     left_frame.grid(row=0, column=0, padx=20, pady=(40, 20), sticky="n")
 
@@ -32,20 +44,7 @@ def create_app():
 
     btn_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
     btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
-    ctk.CTkButton(btn_frame, text="🧾 Calcular", width=110, command=lambda: calcular()).grid(row=0, column=0, padx=7)
-    ctk.CTkButton(btn_frame, text="📊 A vs f", width=110, command=lambda: graficar_f()).grid(row=0, column=1, padx=7)
-    ctk.CTkButton(btn_frame, text="📊 A vs k", width=110, command=lambda: graficar_k()).grid(row=0, column=2, padx=7)
-    ctk.CTkButton(btn_frame, text="🪜 Limpiar", width=110, command=lambda: limpiar_historial()).grid(row=1, column=0, pady=10)
-    ctk.CTkButton(btn_frame, text="📀 Exportar", width=110, command=lambda: exportar_historial()).grid(row=1, column=2, pady=10)
 
-    # ---------- DERECHA ----------
-    right_frame = ctk.CTkFrame(layout)
-    right_frame.grid(row=0, column=1, padx=20, pady=20, sticky="n")
-
-    ctk.CTkLabel(right_frame, text="Historial de cálculos", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(5, 10))
-
-    scroll_hist = ctk.CTkScrollableFrame(right_frame, width=360, height=320)
-    scroll_hist.pack(pady=(0, 10))
     checkboxes = []
 
     def calcular():
@@ -55,11 +54,9 @@ def create_app():
                 f = float(raw_f.strip("%")) / 100
             else:
                 f = float(raw_f)
-
             k = float(entry_k.get())
-
             if not (0 < f < 1):
-                result.configure(text="⚠️ f debe estar entre 0 y 1 (ej: 0.90 o 90%)")
+                result.configure(text="⚠️ f debe estar entre 0 y 1 (ej: 0.90)")
                 return
             if k <= 0:
                 result.configure(text="⚠️ k debe ser un número positivo")
@@ -73,23 +70,30 @@ def create_app():
             var = ctk.BooleanVar()
             checkbox = ctk.CTkCheckBox(scroll_hist, text=resumen, variable=var)
             checkbox.pack(anchor="w", pady=2)
-            checkbox.bind("<Double-Button-1>", lambda e, f=f, k=k: cargar_valores(f, k))
+
+            # Doble click para cargar valores
+            def doble_click(event, cb=checkbox):
+                if cb.cget("text") in [c[0].cget("text") for c in checkboxes]:
+                    parts = cb.cget("text").split("→")[0].strip().split(",")
+                    f_val = parts[0].split("=")[1]
+                    k_val = parts[1].split("=")[1]
+                    entry_f.delete(0, "end")
+                    entry_f.insert(0, f_val)
+                    entry_k.delete(0, "end")
+                    entry_k.insert(0, k_val)
+                    result.configure(text=f"Cargado: f={f_val}, k={k_val}")
+
+            checkbox.bind("<Double-Button-1>", doble_click)
+
             checkboxes.append((checkbox, var))
         except Exception as e:
             result.configure(text=f"Error: {e}")
 
-    def cargar_valores(f, k):
-        entry_f.delete(0, "end")
-        entry_f.insert(0, f"{f:.2f}")
-        entry_k.delete(0, "end")
-        entry_k.insert(0, f"{k:.2f}")
-        result.configure(text="↩️ Valores cargados desde historial")
-
     def graficar_f():
         seleccionados = [(cb, var) for cb, var in checkboxes if var.get()]
-        if len(seleccionados) >= 2:
+        if len(seleccionados) >= 1:
             pares = extraer_fk_de_checkboxes(seleccionados)
-            plot_multi_A_vs_f(pares)
+            plot_A_vs_f_con_botones(pares)
         else:
             try:
                 raw_f = entry_f.get().strip()
@@ -98,40 +102,9 @@ def create_app():
                 else:
                     f = float(raw_f)
                 k = float(entry_k.get())
-                plot_A_vs_f(k, punto_f=f)
+                plot_A_vs_f_con_botones([(f, k)])
             except:
                 result.configure(text="Error en valores para graficar")
-
-    def graficar_k():
-        seleccionados = [(cb, var) for cb, var in checkboxes if var.get()]
-        if len(seleccionados) >= 2:
-            pares = extraer_fk_de_checkboxes(seleccionados)
-            plot_multi_A_vs_k(pares)
-        else:
-            try:
-                raw_f = entry_f.get().strip()
-                if raw_f.endswith("%"):
-                    f = float(raw_f.strip("%")) / 100
-                else:
-                    f = float(raw_f)
-                k = float(entry_k.get())
-                plot_A_vs_k(f, punto_k=k)
-            except:
-                result.configure(text="Error en valores para graficar")
-
-    def extraer_fk_de_checkboxes(items):
-        pares = []
-        for cb, _ in items:
-            try:
-                texto = cb.cget("text")
-                f_str = texto.split("f=")[1].split(",")[0]
-                k_str = texto.split("k=")[1].split("→")[0]
-                f = float(f_str.strip())
-                k = float(k_str.strip())
-                pares.append((f, k))
-            except:
-                continue
-        return pares
 
     def eliminar_seleccionados():
         for cb, var in checkboxes[:]:
@@ -156,11 +129,23 @@ def create_app():
         except Exception as e:
             result.configure(text=f"Error al exportar: {e}")
 
+    ctk.CTkButton(btn_frame, text="🧾 Calcular", width=110, command=calcular).grid(row=0, column=0, padx=7)
+    ctk.CTkButton(btn_frame, text="📊 A vs f", width=110, command=graficar_f).grid(row=0, column=1, padx=7)
+    ctk.CTkButton(btn_frame, text="🪜 Limpiar", width=110, command=limpiar_historial).grid(row=1, column=0, pady=10)
+    ctk.CTkButton(btn_frame, text="📀 Exportar", width=110, command=exportar_historial).grid(row=1, column=1, pady=10)
     ctk.CTkButton(
-        right_frame, text="Eliminar seleccionados",
+        left_frame, text="Eliminar seleccionados",
         fg_color="#E53935", hover_color="#B71C1C", text_color="white",
         font=ctk.CTkFont(size=13, weight="bold"),
         command=eliminar_seleccionados
-    ).pack(pady=10)
+    ).grid(row=4, column=0, columnspan=2, pady=10)
+
+    right_frame = ctk.CTkFrame(layout)
+    right_frame.grid(row=0, column=1, padx=20, pady=20, sticky="n")
+
+    ctk.CTkLabel(right_frame, text="Historial de cálculos", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(5, 10))
+
+    scroll_hist = ctk.CTkScrollableFrame(right_frame, width=360, height=320)
+    scroll_hist.pack(pady=(0, 10))
 
     return app

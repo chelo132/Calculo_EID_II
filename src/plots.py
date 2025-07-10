@@ -1,84 +1,96 @@
-# plots.py
 import numpy as np
 import matplotlib.pyplot as plt
+import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from amdahl import aceleracion, limite_teorico
 
-def plot_A_vs_f(k: float, f_min=0.01, f_max=0.99, num=100, punto_f=None):
-    f_vals = np.linspace(f_min, f_max, num)
-    A_vals = [aceleracion(f, k) for f in f_vals]
-    plt.plot(f_vals, A_vals, label=f"k = {k}")
+class GraficoAvsFConBotones:
+    def __init__(self, datos_fk, mostrar_linea_A=True, mostrar_linea_Amax=True):
+        """
+        datos_fk: lista de tuplas [(f1,k1), (f2,k2), ...]
+        """
+        self.datos_fk = datos_fk
+        self.mostrar_linea_A = mostrar_linea_A
+        self.mostrar_linea_Amax = mostrar_linea_Amax
 
-    if punto_f is not None:
-        A_punto = aceleracion(punto_f, k)
-        A_max = limite_teorico(punto_f)
-        plt.axvline(x=punto_f, color="red", linestyle="--", label=f"f = {punto_f:.2f}")
-        plt.plot(punto_f, A_punto, "ro")
-        plt.axhline(y=A_punto, color="#8B4513", linestyle="--", label=f"A = {A_punto:.4f}")
-        plt.axhline(y=A_max, color="#4169E1", linestyle="--", label=f"Aₘₐₓ = {A_max:.4f}")
+        self.root = tk.Tk()
+        self.root.title("Gráfico A vs f")
 
-    plt.xlabel("Fracción mejorable (f)")
-    plt.ylabel("Aceleración (A)")
-    plt.title("A vs f")
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+        self.fig, self.ax = plt.subplots(figsize=(8,5))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-def plot_A_vs_k(f: float, k_min=1, k_max=20, num=100, punto_k=None):
-    k_vals = np.linspace(k_min, k_max, num)
-    A_vals = [aceleracion(f, k) for k in k_vals]
-    plt.plot(k_vals, A_vals, label=f"f = {f}")
+        # Botones para mostrar/ocultar líneas
+        botones_frame = tk.Frame(self.root)
+        botones_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-    if punto_k is not None:
-        A_punto = aceleracion(f, punto_k)
-        A_max = limite_teorico(f)
-        plt.axvline(x=punto_k, color="red", linestyle="--", label=f"k = {punto_k:.2f}")
-        plt.plot(punto_k, A_punto, "ro")
-        plt.axhline(y=A_punto, color="#8B4513", linestyle="--", label=f"A = {A_punto:.4f}")
-        plt.axhline(y=A_max, color="#4169E1", linestyle="--", label=f"Aₘₐₓ = {A_max:.4f}")
+        self.btn_linea_A = tk.Button(botones_frame, text="Mostrar línea A", command=self.toggle_linea_A)
+        self.btn_linea_A.pack(side=tk.LEFT, padx=5, pady=5)
 
-    plt.xlabel("Factor de mejora (k)")
-    plt.ylabel("Aceleración (A)")
-    plt.title("A vs k")
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+        self.btn_linea_Amax = tk.Button(botones_frame, text="Mostrar línea Amax", command=self.toggle_linea_Amax)
+        self.btn_linea_Amax.pack(side=tk.LEFT, padx=5, pady=5)
 
-def plot_multi_A_vs_f(pares_fk):
-    f_vals = np.linspace(0.01, 0.99, 100)
-    for f, k in pares_fk:
-        A_vals = [aceleracion(f_, k) for f_ in f_vals]
-        A = aceleracion(f, k)
-        Amax = limite_teorico(f)
+        self.lineas_A = []
+        self.lineas_Amax = []
+        self.puntos_rojos = []
 
-        plt.plot(f_vals, A_vals, label=f"k={k:.2f}, f={f:.2f}")
-        plt.axvline(x=f, color="red", linestyle="--")
-        plt.axhline(y=A, color="#8B4513", linestyle="--")
-        plt.axhline(y=Amax, color="#4169E1", linestyle="--")
-        plt.plot(f, A, "ro")
+        self.plot_inicial()
+        self.root.mainloop()
 
-    plt.xlabel("Fracción mejorable (f)")
-    plt.ylabel("Aceleración (A)")
-    plt.title("A vs f (múltiples)")
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+    def plot_inicial(self):
+        self.ax.clear()
+        f_vals = np.linspace(0.01, 0.99, 200)
 
-def plot_multi_A_vs_k(pares_fk):
-    k_vals = np.linspace(1, 20, 100)
-    for f, k in pares_fk:
-        A_vals = [aceleracion(f, k_) for k_ in k_vals]
-        A = aceleracion(f, k)
-        Amax = limite_teorico(f)
+        for f, k in self.datos_fk:
+            A_vals = [aceleracion(fx, k) for fx in f_vals]
+            self.ax.plot(f_vals, A_vals, label=f"k={k}, f={f:.2f}")
 
-        plt.plot(k_vals, A_vals, label=f"f={f:.2f}, k={k:.2f}")
-        plt.axvline(x=k, color="red", linestyle="--")
-        plt.axhline(y=A, color="#8B4513", linestyle="--")
-        plt.axhline(y=Amax, color="#4169E1", linestyle="--")
-        plt.plot(k, A, "ro")
+            A_punto = aceleracion(f, k)
+            A_max = limite_teorico(f)
 
-    plt.xlabel("Factor de mejora (k)")
-    plt.ylabel("Aceleración (A)")
-    plt.title("A vs k (múltiples)")
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+            p, = self.ax.plot(f, A_punto, "ro")
+            self.puntos_rojos.append(p)
+
+            if self.mostrar_linea_A:
+                linea_A, = self.ax.plot([0, 1], [A_punto, A_punto], linestyle="--", color="#8B4513", label=f"A para f={f:.2f}")
+            else:
+                linea_A, = self.ax.plot([], [], linestyle="--", color="#8B4513")
+            self.lineas_A.append(linea_A)
+
+            if self.mostrar_linea_Amax:
+                linea_Amax, = self.ax.plot([0, 1], [A_max, A_max], linestyle="--", color="#4169E1", label=f"Amax para f={f:.2f}")
+            else:
+                linea_Amax, = self.ax.plot([], [], linestyle="--", color="#4169E1")
+            self.lineas_Amax.append(linea_Amax)
+
+            self.ax.axvline(x=f, color="red", linestyle="--")
+
+        self.ax.set_xlabel("Fracción mejorable (f)")
+        self.ax.set_ylabel("Aceleración (A)")
+        self.ax.set_title("A vs f")
+        self.ax.grid(True)
+        self.ax.legend()
+        self.canvas.draw()
+
+    def toggle_linea_A(self):
+        self.mostrar_linea_A = not self.mostrar_linea_A
+        for linea, (f, k) in zip(self.lineas_A, self.datos_fk):
+            if self.mostrar_linea_A:
+                A_punto = aceleracion(f, k)
+                linea.set_data([0, 1], [A_punto, A_punto])
+            else:
+                linea.set_data([], [])
+        self.canvas.draw()
+
+    def toggle_linea_Amax(self):
+        self.mostrar_linea_Amax = not self.mostrar_linea_Amax
+        for linea, (f, _) in zip(self.lineas_Amax, self.datos_fk):
+            if self.mostrar_linea_Amax:
+                A_max = limite_teorico(f)
+                linea.set_data([0, 1], [A_max, A_max])
+            else:
+                linea.set_data([], [])
+        self.canvas.draw()
+
+def plot_A_vs_f_con_botones(datos_fk):
+    GraficoAvsFConBotones(datos_fk)
