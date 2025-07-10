@@ -1,78 +1,106 @@
-# Definición de la interfaz con 
+# gui.py (interfaz principal)
 import customtkinter as ctk
-import numpy as np
-import matplotlib.pyplot as plt
 from amdahl import aceleracion, limite_teorico
 from plots import plot_A_vs_f, plot_A_vs_k
 
-# Datos de entrada para Grupo 5 (CPU)
-datos = {
-    "Unidad de punto flotante (FPU)": (0.25, 6),
-    "Caché L1": (0.15, 4),
-    "Predictor de saltos": (0.10, 8),
-    "Memoria principal": (0.50, 2),
-}
-
-ctk.set_appearance_mode("System")
-ctk.set_default_color_theme("blue")
-
 def create_app():
+    ctk.set_appearance_mode("System")
+    ctk.set_default_color_theme("blue")
+
     app = ctk.CTk()
-    app.title("Aceleración CPU - Ley de Amdahl")
-    app.geometry("520x480")
+    app.title("Ley de Amdahl - Cálculo dinámico")
+    app.geometry("720x460")
 
-    # Dropdown
-    sel = ctk.StringVar(value=list(datos.keys())[0])
-    menu = ctk.CTkOptionMenu(app, values=list(datos.keys()), variable=sel,
-                             command=lambda _: update_entries())
-    menu.pack(pady=10)
+    # Layout principal (izquierda = input, derecha = historial)
+    layout = ctk.CTkFrame(app)
+    layout.pack(fill="both", expand=True, padx=20, pady=20)
 
-    # Frame de entradas
-    frame = ctk.CTkFrame(app)
-    frame.pack(padx=20, pady=10, fill="x")
-    ctk.CTkLabel(frame, text="Fracción mejorable (f):").grid(row=0, column=0, sticky="w", padx=5)
-    entry_f = ctk.CTkEntry(frame); entry_f.grid(row=0, column=1, padx=5)
-    ctk.CTkLabel(frame, text="Factor de mejora (k):").grid(row=1, column=0, sticky="w", padx=5)
-    entry_k = ctk.CTkEntry(frame); entry_k.grid(row=1, column=1, padx=5)
+    # ----- Sección izquierda -----
+    left_frame = ctk.CTkFrame(layout)
+    left_frame.grid(row=0, column=0, padx=10, pady=10, sticky="n")
 
-    # Resultado
-    result = ctk.CTkLabel(app, text="A: --    Aₘₐₓ: --",
-                         font=ctk.CTkFont(size=16, weight="bold"))
-    result.pack(pady=10)
+    ctk.CTkLabel(left_frame, text="Fracción mejorable (f):").grid(row=0, column=0, sticky="w", padx=5)
+    entry_f = ctk.CTkEntry(left_frame, width=100)
+    entry_f.grid(row=0, column=1, padx=5)
 
-    # Funciones internas
-    def update_entries():
-        f0, k0 = datos[sel.get()]
-        entry_f.delete(0, ctk.END); entry_f.insert(0, str(f0))
-        entry_k.delete(0, ctk.END); entry_k.insert(0, str(k0))
-        result.configure(text="A: --    Aₘₐₓ: --")
+    ctk.CTkLabel(left_frame, text="Factor de mejora (k):").grid(row=1, column=0, sticky="w", padx=5)
+    entry_k = ctk.CTkEntry(left_frame, width=100)
+    entry_k.grid(row=1, column=1, padx=5)
+
+    result = ctk.CTkLabel(left_frame, text="A: --    Aₘₐₓ: --", font=ctk.CTkFont(size=14, weight="bold"))
+    result.grid(row=2, column=0, columnspan=2, pady=10)
+
+    # Botones
+    btn_frame = ctk.CTkFrame(left_frame)
+    btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
+    ctk.CTkButton(btn_frame, text="Calcular", command=lambda: calcular()).grid(row=0, column=0, padx=5)
+    ctk.CTkButton(btn_frame, text="Graf. A vs f", command=lambda: graficar_f()).grid(row=0, column=1, padx=5)
+    ctk.CTkButton(btn_frame, text="Graf. A vs k", command=lambda: graficar_k()).grid(row=0, column=2, padx=5)
+
+    # ----- Sección derecha (Historial) -----
+    right_frame = ctk.CTkFrame(layout)
+    right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="n")
+
+    ctk.CTkLabel(right_frame, text="Historial de cálculos", font=ctk.CTkFont(size=15, weight="bold")).pack(pady=5)
+
+    listbox = ctk.CTkTextbox(right_frame, height=250, width=300)
+    listbox.pack(pady=5)
+    listbox.configure(state="disabled")  # Modo solo lectura
+
+    selected_index = [None]  # Usamos lista mutable para acceder dentro de funciones anidadas
+    history_items = []       # Guardamos texto para editar y eliminar
 
     def calcular():
         try:
-            f_val, k_val = float(entry_f.get()), float(entry_k.get())
-            A = aceleracion(f_val, k_val)
-            A_max = limite_teorico(f_val)
-            result.configure(text=f"A = {A:.3f}    Aₘₐₓ = {A_max:.3f}")
-        except:
-            result.configure(text="Entrada inválida. Usa números.")
+            f = float(entry_f.get())
+            k = float(entry_k.get())
+            A = aceleracion(f, k)
+            Amax = limite_teorico(f)
+            result.configure(text=f"A = {A:.4f}    Aₘₐₓ = {Amax:.4f}")
+
+            # Guardar en historial
+            resumen = f"f={f:.2f}, k={k:.2f} → A={A:.4f}, Aₘₐₓ={Amax:.4f}\n"
+            history_items.append(resumen)
+
+            listbox.configure(state="normal")
+            listbox.insert("end", resumen)
+            listbox.configure(state="disabled")
+        except Exception as e:
+            result.configure(text=f"Error: {e}")
 
     def graficar_f():
         try:
-            plot_A_vs_f(float(entry_k.get()))
+            k = float(entry_k.get())
+            plot_A_vs_f(k)
         except:
-            result.configure(text="Invalid k")
+            result.configure(text="Error: k inválido")
 
     def graficar_k():
         try:
-            plot_A_vs_k(float(entry_f.get()))
+            f = float(entry_f.get())
+            plot_A_vs_k(f)
         except:
-            result.configure(text="Invalid f")
+            result.configure(text="Error: f inválido")
 
-    # Botonera
-    btns = ctk.CTkFrame(app); btns.pack(pady=10)
-    ctk.CTkButton(btns, text="Calcular", command=calcular).grid(row=0, column=0, padx=5)
-    ctk.CTkButton(btns, text="Graf. A vs f", command=graficar_f).grid(row=0, column=1, padx=5)
-    ctk.CTkButton(btns, text="Graf. A vs k", command=graficar_k).grid(row=0, column=2, padx=5)
+    def eliminar_seleccion():
+        # Obtener línea seleccionada por índice
+        try:
+            idx = listbox.index("insert").split(".")[0]
+            idx = int(idx)
+            if idx <= len(history_items):
+                # Eliminar del historial
+                del history_items[idx - 1]
+                # Actualizar visual
+                listbox.configure(state="normal")
+                listbox.delete("1.0", "end")
+                for linea in history_items:
+                    listbox.insert("end", linea)
+                listbox.configure(state="disabled")
+        except:
+            result.configure(text="Selecciona una línea para eliminar")
 
-    update_entries()
+    # Botón eliminar
+    ctk.CTkButton(right_frame, text="Eliminar seleccionado", fg_color="red",
+                  command=eliminar_seleccion).pack(pady=5)
+
     return app

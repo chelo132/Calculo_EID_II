@@ -1,4 +1,4 @@
-# Launcher de la app CustomTkinter
+# main.py
 from gui import create_app
 
 def main():
