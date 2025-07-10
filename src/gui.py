@@ -23,7 +23,7 @@ def create_app():
 
     app = ctk.CTk()
     app.title("Ley de Amdahl - Cálculo dinámico")
-    app.geometry("950x580")
+    app.geometry("950x650")
 
     layout = ctk.CTkFrame(app)
     layout.pack(fill="both", expand=True, padx=20, pady=20)
@@ -31,27 +31,29 @@ def create_app():
     left_frame = ctk.CTkFrame(layout, corner_radius=12)
     left_frame.grid(row=0, column=0, padx=30, pady=(40, 20), sticky="n")
 
-
-    # Fracción mejorable (f)
     ctk.CTkLabel(left_frame, text="Fracción mejorable (f):", font=ctk.CTkFont(size=15)).grid(
         row=0, column=0, sticky="w", padx=10, pady=(30, 0)
     )
     entry_f = ctk.CTkEntry(left_frame, width=200, font=ctk.CTkFont(size=14))
-    entry_f.grid(row=1, column=0, padx=10, pady=(0, 40))
+    entry_f.grid(row=1, column=0, padx=10, pady=(0, 20))
 
-    # Factor de mejora (k)
     ctk.CTkLabel(left_frame, text="Factor de mejora (k):", font=ctk.CTkFont(size=15)).grid(
-        row=2, column=0, sticky="w", padx=10, pady=(30, 0)
+        row=2, column=0, sticky="w", padx=10, pady=(0, 0)
     )
     entry_k = ctk.CTkEntry(left_frame, width=200, font=ctk.CTkFont(size=14))
-    entry_k.grid(row=3, column=0, padx=10, pady=(0, 40))
+    entry_k.grid(row=3, column=0, padx=10, pady=(0, 20))
 
+    ctk.CTkLabel(left_frame, text="Tiempo original (segundos):", font=ctk.CTkFont(size=15)).grid(
+        row=4, column=0, sticky="w", padx=10, pady=(0, 0)
+    )
+    entry_tiempo = ctk.CTkEntry(left_frame, width=200, font=ctk.CTkFont(size=14))
+    entry_tiempo.grid(row=5, column=0, padx=10, pady=(0, 20))
 
     result = ctk.CTkLabel(left_frame, text="A: --    Aₘₐₓ: --", font=ctk.CTkFont(size=15, weight="bold"))
-    result.grid(row=4, column=0, pady=(0, 25))
+    result.grid(row=6, column=0, pady=(0, 25))
 
     btn_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
-    btn_frame.grid(row=5, column=0, pady=10)
+    btn_frame.grid(row=7, column=0, pady=10)
 
     checkboxes = []
 
@@ -72,7 +74,18 @@ def create_app():
 
             A = aceleracion(f, k)
             Amax = limite_teorico(f)
-            result.configure(text=f"A = {A:.4f}    Aₘₐₓ = {Amax:.4f}")
+
+            texto_resultado = f"A = {A:.4f}    Aₘₐₓ = {Amax:.4f}"
+
+            try:
+                t_original = float(entry_tiempo.get())
+                t_nuevo = t_original / A
+                mejora = (1 - t_nuevo / t_original) * 100
+                texto_resultado += f"\nNuevo tiempo: {t_nuevo:.2f} s\nMejora total: {mejora:.2f}%"
+            except:
+                pass
+
+            result.configure(text=texto_resultado)
 
             resumen = f"f={f:.2f}, k={k:.2f} → A={A:.4f}, Aₘₐₓ={Amax:.4f}"
             var = ctk.BooleanVar()
@@ -95,6 +108,20 @@ def create_app():
             checkboxes.append((checkbox, var))
         except Exception as e:
             result.configure(text=f"Error: {e}")
+
+    def comparar_top3():
+        try:
+            if len(checkboxes) < 3:
+                result.configure(text="⚠️ Se necesitan al menos 3 resultados para comparar")
+                return
+            ultimos = checkboxes[-3:]
+            pares = extraer_fk_de_checkboxes(ultimos)
+            mejores = [(f, k, aceleracion(f, k)) for f, k in pares]
+            mejores.sort(key=lambda x: x[2], reverse=True)
+            f, k, a = mejores[0]
+            result.configure(text=f"🏆 Mejor mejora: f={f:.2f}, k={k:.2f} → A = {a:.4f}")
+        except Exception as e:
+            result.configure(text=f"Error al comparar: {e}")
 
     def graficar_f():
         seleccionados = [(cb, var) for cb, var in checkboxes if var.get()]
@@ -156,15 +183,16 @@ def create_app():
     ctk.CTkButton(btn_frame, text="🧾 Calcular", width=110, command=calcular).grid(row=0, column=0, padx=7)
     ctk.CTkButton(btn_frame, text="📊 A vs f", width=110, command=graficar_f).grid(row=0, column=1, padx=7)
     ctk.CTkButton(btn_frame, text="📊 A vs k", width=110, command=graficar_k).grid(row=0, column=2, padx=7)
-    ctk.CTkButton(btn_frame, text="🪜 Limpiar", width=110, command=limpiar_historial).grid(row=1, column=0, pady=10)
-    ctk.CTkButton(btn_frame, text="📀 Exportar", width=110, command=exportar_historial).grid(row=1, column=1, pady=10)
+    ctk.CTkButton(btn_frame, text="🔍 Comparar 3", width=110, command=comparar_top3).grid(row=1, column=0, pady=10)
+    ctk.CTkButton(btn_frame, text="🪜 Limpiar", width=110, command=limpiar_historial).grid(row=1, column=1, pady=10)
+    ctk.CTkButton(btn_frame, text="📀 Exportar", width=110, command=exportar_historial).grid(row=1, column=2, pady=10)
 
     ctk.CTkButton(
         left_frame, text="Eliminar seleccionados",
         fg_color="#E53935", hover_color="#B71C1C", text_color="white",
         font=ctk.CTkFont(size=13, weight="bold"),
         command=eliminar_seleccionados
-    ).grid(row=6, column=0, pady=10)
+    ).grid(row=8, column=0, pady=10)
 
     right_frame = ctk.CTkFrame(layout)
     right_frame.grid(row=0, column=1, padx=20, pady=20, sticky="n")
